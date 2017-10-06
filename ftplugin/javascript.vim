@@ -24,6 +24,7 @@ function! s:FlowCoverageRefresh()
     let l:isflow = getline(1)
 
     if l:isflow !~# '^\/[*/]\s*@flow'
+        let b:flow_coverage_status = ''
         call s:FlowCoverageHide()
         return
     endif
