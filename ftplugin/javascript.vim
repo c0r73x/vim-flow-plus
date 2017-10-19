@@ -4,7 +4,6 @@ endif
 
 let g:loaded_flow_plus = 1
 let g:flow#flowpath = 'flow'
-let g:flow#flags = ' --from vim --json --no-auto-start'
 
 function! s:FlowCoverageHide()
     for l:match in getmatches()
@@ -20,29 +19,23 @@ function! GetLine(line)
     return [ get(a:line, 'line'), get(a:line, 'column') ]
 endfunction
 
-function! s:FlowCoverageRefresh()
-    let l:isflow = getline(1)
-
-    if l:isflow !~# '^\/[*/]\s*@flow'
-        let b:flow_coverage_status = ''
-        call s:FlowCoverageHide()
-        return
+function! s:HandleFlowHighlight(id, data, event)
+    if b:flow_coverage_highlight_enabled && b:flow_coverage_status !=# ''
+        call s:FlowCoverageShowHighlights()
     endif
+endfunction
 
-    if !exists('b:flow_coverage_highlight_enabled')
-        let b:flow_coverage_highlight_enabled = 1
-    endif
+function! s:HandleFlowError(id, data, event)
+    let b:flow_coverage_status = ''
+endfunction
 
-    let l:command = g:flow#flowpath . ' coverage ' .
-                \ g:flow#flags . ' ' . expand('%:p')
-    let l:result = system(l:command)
-
-    if v:shell_error > 0 || empty(l:result)
+function! s:HandleFlowCoverage(id, data, event)
+    if empty(a:data)
         let b:flow_coverage_status = ''
         return
     endif
 
-    let l:json_result = json_decode(l:result)
+    let l:json_result = json_decode(a:data)
     let l:expressions = get(l:json_result, 'expressions')
     let l:covered = get(l:expressions, 'covered_count')
     let l:total = l:covered + get(l:expressions, 'uncovered_count')
@@ -58,10 +51,35 @@ function! s:FlowCoverageRefresh()
                 \)
 
     let b:flow_coverage_uncovered_locs = get(l:expressions, 'uncovered_locs')
+endfunction
 
-    if b:flow_coverage_highlight_enabled
-        call s:FlowCoverageShowHighlights()
+function! s:FlowCoverageRefresh()
+    let l:isflow = getline(1)
+
+    if l:isflow !~# '^\/[*/]\s*@flow'
+        let b:flow_coverage_status = ''
+        call s:FlowCoverageHide()
+        return
     endif
+
+    if !exists('b:flow_coverage_highlight_enabled')
+        let b:flow_coverage_highlight_enabled = 1
+    endif
+    let l:result = jobstart(
+                \   [
+                \       g:flow#flowpath,
+                \       'coverage',
+                \       '--from', 'vim',
+                \       '--json',
+                \       '--no-auto-start',
+                \       expand('%:p')
+                \   ],
+                \   {
+                \       'on_stdout': function('s:HandleFlowCoverage'),
+                \       'on_stderr': function('s:HandleFlowError'),
+                \       'on_exit': function('s:HandleFlowHighlight'),
+                \   }
+                \ )
 endfunction
 
 function! s:FlowCoverageShowHighlights()
