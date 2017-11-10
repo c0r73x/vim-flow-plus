@@ -36,6 +36,14 @@ function! s:HandleFlowCoverage(id, data, event)
     endif
 
     let l:json_result = json_decode(a:data)
+
+    let l:exit = get(l:json_result, 'exit')
+    if (!empty(l:exit))
+        let l:msg = get(l:exit, 'msg')
+        echoerr substitute(l:msg, '[\r\n]\+', '', 'g')
+        return
+    endif
+
     let l:expressions = get(l:json_result, 'expressions')
     let l:covered = get(l:expressions, 'covered_count')
     let l:total = l:covered + get(l:expressions, 'uncovered_count')
