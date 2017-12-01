@@ -22,16 +22,29 @@ endfunction
 function! s:HandleFlowHighlight(id, data, event)
     if b:flow_coverage_highlight_enabled && b:flow_coverage_status !=# ''
         call s:FlowCoverageShowHighlights()
+    else
+        b:flow_coverage_status = ''
     endif
 endfunction
 
 function! s:HandleFlowError(id, data, event)
-    let b:flow_coverage_status = ''
+    if empty(a:data) || join(a:data) ==# ''
+        return
+    endif
+
+    let l:json_result = json_decode(a:data)
+
+    let l:exit = get(l:json_result, 'exit')
+    if (!empty(l:exit))
+        let b:flow_coverage_status = ''
+        let l:msg = get(l:exit, 'msg')
+        echoerr substitute(l:msg, '[\r\n]\+', '', 'g')
+        return
+    endif
 endfunction
 
 function! s:HandleFlowCoverage(id, data, event)
-    if empty(a:data)
-        let b:flow_coverage_status = ''
+    if empty(a:data) || join(a:data) ==# ''
         return
     endif
 
