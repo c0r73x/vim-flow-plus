@@ -20,10 +20,10 @@ function! GetLine(line)
 endfunction
 
 function! s:HandleFlowHighlight(id, data, event)
-    if b:flow_coverage_highlight_enabled && b:flow_coverage_status !=# ''
+    if b:flow_coverage_highlight_enabled && exists('b:flow_coverage_status')
         call s:FlowCoverageShowHighlights()
-    else
-        b:flow_coverage_status = ''
+    elseif exists('b:flow_coverage_status')
+        unlet b:flow_coverage_status
     endif
 endfunction
 
@@ -36,9 +36,9 @@ function! s:HandleFlowError(id, data, event)
 
     let l:exit = get(l:json_result, 'exit')
     if (!empty(l:exit))
-        let b:flow_coverage_status = ''
+        unlet b:flow_coverage_status
         let l:msg = get(l:exit, 'msg')
-        echoerr substitute(l:msg, '[\r\n]\+', '', 'g')
+        " echoerr substitute(l:msg, '[\r\n]\+', '', 'g')
         return
     endif
 endfunction
@@ -78,8 +78,15 @@ function! s:FlowCoverageRefresh()
     let l:isflow = getline(1)
 
     if l:isflow !~# '^\/[*/]\s*@flow'
-        let b:flow_coverage_status = ''
         call s:FlowCoverageHide()
+
+        if exists('b:flow_coverage_highlight_enabled')
+            unlet b:flow_coverage_highlight_enabled
+        endif
+        if exists('b:flow_coverage_status')
+            unlet b:flow_coverage_status
+        endif
+
         return
     endif
 
