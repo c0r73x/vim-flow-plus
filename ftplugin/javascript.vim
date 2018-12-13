@@ -21,10 +21,21 @@ endfunction
 
 function! s:HandleFlowHighlight(id, data, event)
     if ! empty(a:data)
-        let b:flow_coverage += a:data
+        let s:flow_coverage[-1] .= a:data[0]
+        call extend(s:flow_coverage, a:data[1:])
     endif
 
-    let l:json_result = json_decode(join(b:flow_coverage))
+    if empty(s:flow_coverage)
+        unlet b:flow_coverage_status
+        return
+    endif
+
+    try
+        let l:json_result = json_decode(join(s:flow_coverage))
+    catch
+        call s:FlowCoverageRefresh()
+        return
+    endtry
 
     let l:exit = get(l:json_result, 'exit')
     if (!empty(l:exit))
@@ -45,7 +56,7 @@ function! s:HandleFlowHighlight(id, data, event)
                 \   l:percent,
                 \   l:covered,
                 \   l:total
-                \)
+                \ )
 
     let b:flow_coverage_uncovered_locs = get(l:expressions, 'uncovered_locs')
 
@@ -66,6 +77,7 @@ function! s:HandleFlowError(id, data, event)
     let l:exit = get(l:json_result, 'exit')
     if (!empty(l:exit))
         unlet b:flow_coverage_status
+        let s:flow_coverage = ['']
         let l:msg = get(l:exit, 'msg')
         " echoerr substitute(l:msg, '[\r\n]\+', '', 'g')
         return
@@ -77,7 +89,8 @@ function! s:HandleFlowCoverage(id, data, event)
         return
     endif
 
-    let b:flow_coverage += a:data
+    let s:flow_coverage[-1] .= a:data[0]
+    call extend(s:flow_coverage, a:data[1:])
 endfunction
 
 function! s:FlowCoverageRefresh()
@@ -100,7 +113,7 @@ function! s:FlowCoverageRefresh()
         let b:flow_coverage_highlight_enabled = 1
     endif
 
-    let b:flow_coverage = []
+    let s:flow_coverage = ['']
     let l:result = jobstart(
                 \   [
                 \       g:flow#flowpath,
