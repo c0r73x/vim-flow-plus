@@ -20,6 +20,10 @@ function! GetLine(line)
 endfunction
 
 function! s:HandleFlowHighlight(id, data, event)
+    if ! empty(a:data)
+        let b:flow_coverage += a:data
+    endif
+
     let l:json_result = json_decode(join(b:flow_coverage))
 
     let l:exit = get(l:json_result, 'exit')
