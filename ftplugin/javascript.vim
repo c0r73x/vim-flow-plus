@@ -20,6 +20,31 @@ function! GetLine(line)
 endfunction
 
 function! s:HandleFlowHighlight(id, data, event)
+    let l:json_result = json_decode(join(b:flow_coverage))
+
+    let l:exit = get(l:json_result, 'exit')
+    if (!empty(l:exit))
+        let l:msg = get(l:exit, 'msg')
+        echoerr substitute(l:msg, '[\r\n]\+', '', 'g')
+        return
+    endif
+
+    let l:expressions = get(l:json_result, 'expressions')
+    let l:covered = get(l:expressions, 'covered_count')
+    let l:total = l:covered + get(l:expressions, 'uncovered_count')
+    let l:percent = l:total > 0 ?
+                \ ((l:covered / str2float(l:total)) * 100.0) :
+                \ 0.0
+
+    let b:flow_coverage_status = printf(
+                \   '%.2f%% (%d/%d)',
+                \   l:percent,
+                \   l:covered,
+                \   l:total
+                \)
+
+    let b:flow_coverage_uncovered_locs = get(l:expressions, 'uncovered_locs')
+
     if b:flow_coverage_highlight_enabled && exists('b:flow_coverage_status')
         call s:FlowCoverageShowHighlights()
     elseif exists('b:flow_coverage_status')
@@ -48,30 +73,7 @@ function! s:HandleFlowCoverage(id, data, event)
         return
     endif
 
-    let l:json_result = json_decode(a:data)
-
-    let l:exit = get(l:json_result, 'exit')
-    if (!empty(l:exit))
-        let l:msg = get(l:exit, 'msg')
-        echoerr substitute(l:msg, '[\r\n]\+', '', 'g')
-        return
-    endif
-
-    let l:expressions = get(l:json_result, 'expressions')
-    let l:covered = get(l:expressions, 'covered_count')
-    let l:total = l:covered + get(l:expressions, 'uncovered_count')
-    let l:percent = l:total > 0 ?
-                \ ((l:covered / str2float(l:total)) * 100.0) :
-                \ 0.0
-
-    let b:flow_coverage_status = printf(
-                \   '%.2f%% (%d/%d)',
-                \   l:percent,
-                \   l:covered,
-                \   l:total
-                \)
-
-    let b:flow_coverage_uncovered_locs = get(l:expressions, 'uncovered_locs')
+    let b:flow_coverage += a:data
 endfunction
 
 function! s:FlowCoverageRefresh()
@@ -93,6 +95,8 @@ function! s:FlowCoverageRefresh()
     if !exists('b:flow_coverage_highlight_enabled')
         let b:flow_coverage_highlight_enabled = 1
     endif
+
+    let b:flow_coverage = []
     let l:result = jobstart(
                 \   [
                 \       g:flow#flowpath,
