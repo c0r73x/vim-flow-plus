@@ -20,13 +20,10 @@ function! GetLine(line)
 endfunction
 
 function! s:HandleFlowHighlight(id, data, event)
-    if ! empty(a:data)
-        let s:flow_coverage[-1] .= a:data[0]
-        call extend(s:flow_coverage, a:data[1:])
-    endif
-
     if empty(s:flow_coverage)
-        unlet b:flow_coverage_status
+        if exists('b:flow_coverage_status')
+            unlet b:flow_coverage_status
+        endif
         return
     endif
 
@@ -39,8 +36,6 @@ function! s:HandleFlowHighlight(id, data, event)
 
     let l:exit = get(l:json_result, 'exit')
     if (!empty(l:exit))
-        let l:msg = get(l:exit, 'msg')
-        echoerr substitute(l:msg, '[\r\n]\+', '', 'g')
         return
     endif
 
@@ -72,16 +67,13 @@ function! s:HandleFlowError(id, data, event)
         return
     endif
 
-    let l:json_result = json_decode(a:data)
-
-    let l:exit = get(l:json_result, 'exit')
-    if (!empty(l:exit))
+    if exists('b:flow_coverage_status')
         unlet b:flow_coverage_status
-        let s:flow_coverage = ['']
-        let l:msg = get(l:exit, 'msg')
-        " echoerr substitute(l:msg, '[\r\n]\+', '', 'g')
-        return
     endif
+
+    let s:flow_coverage = ['']
+    let l:msg = join(a:data)
+    echo 'Flow Error:' . substitute(l:msg, '[\r\n]\+', '', 'g')
 endfunction
 
 function! s:HandleFlowCoverage(id, data, event)
@@ -304,5 +296,5 @@ highlight def link FlowCoverage SpellCap
 augroup FlowCoverage
 autocmd!
 autocmd BufLeave * call s:FlowCoverageHide()
-autocmd BufWritePost,BufReadPost,BufEnter * call s:FlowCoverageRefresh()
+autocmd BufWritePost,BufReadPost * call s:FlowCoverageRefresh()
 augroup END
